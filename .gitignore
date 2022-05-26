@@ -1,9 +1,10 @@
 *.pyc
-*.ipynb
 *.DS_Store
 *__pycache__
-*.ipynb_checkpoints/
+*.ipynb_checkpoints
 .idea
 venv
-*/data/*
+
+*/runs
+*/data
 !*/data/README.md
