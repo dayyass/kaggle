@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from metrics import compute_metrics_on_df
+from metrics import compute_metrics
 from model import SiameseManhattanBERT
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -16,7 +16,8 @@ def train(
     writer: SummaryWriter,
     device: torch.device,
 ) -> None:
-    """Training loop.
+    """
+    Training loop.
 
     Args:
         n_epochs (int): number of epochs to train.
@@ -33,7 +34,7 @@ def train(
 
         print(f"Epoch [{epoch+1} / {n_epochs}]\n")
 
-        train_loss = train_epoch(
+        train_epoch(
             model=model,
             dataloader=train_dataloader,
             optimizer=optimizer,
@@ -42,7 +43,7 @@ def train(
             device=device,
             epoch=epoch,
         )
-        test_loss = evaluate_epoch(
+        evaluate_epoch(
             model=model,
             dataloader=test_dataloader,
             criterion=criterion,
@@ -50,36 +51,6 @@ def train(
             device=device,
             epoch=epoch,
         )
-
-        print(f"Train loss: {train_loss}")
-        print(f"Test loss:  {test_loss}\n")
-
-        writer.add_scalar("Loss / train", train_loss, epoch)
-        writer.add_scalar("Loss / test", test_loss, epoch)
-
-        train_metrics = compute_metrics_on_df(
-            model=model,
-            df=train_dataloader.dataset.df,
-            tokenizer=train_dataloader.collate_fn.tokenizer,
-            tokenizer_kwargs=train_dataloader.collate_fn.tokenizer_kwargs,
-        )
-
-        for metric_name, metric_value in train_metrics.items():
-            writer.add_scalar(f"{metric_name} / train", metric_value, epoch)
-
-        print(f"Train metrics:\n{train_metrics}\n")
-
-        test_metrics = compute_metrics_on_df(
-            model=model,
-            df=test_dataloader.dataset.df,
-            tokenizer=test_dataloader.collate_fn.tokenizer,
-            tokenizer_kwargs=test_dataloader.collate_fn.tokenizer_kwargs,
-        )
-
-        for metric_name, metric_value in test_metrics.items():
-            writer.add_scalar(f"{metric_name} / test", metric_value, epoch)
-
-        print(f"Test metrics:\n{test_metrics}\n\n")
 
 
 def train_epoch(
@@ -90,7 +61,7 @@ def train_epoch(
     writer: SummaryWriter,
     device: torch.device,
     epoch: int,
-) -> float:
+) -> None:
     """
     One training cycle (loop).
 
@@ -102,14 +73,13 @@ def train_epoch(
         writer (SummaryWriter): tensorboard writer.
         device (torch.device): cpu or cuda.
         epoch (int): number of current epochs.
-
-    Returns:
-        float: average loss.
     """
 
     model.train()
 
     epoch_loss = []
+    y_true_list = []
+    y_pred_list = []
 
     for i, (q1, q2, tgt) in tqdm(
         enumerate(dataloader),
@@ -121,16 +91,39 @@ def train_epoch(
 
         optimizer.zero_grad()
 
-        pred = model(q1, q2)
-        loss = criterion(pred, tgt)
+        scores = model(q1, q2)
+        loss = criterion(scores, tgt)
 
         loss.backward()
         optimizer.step()
 
         epoch_loss.append(loss.item())
-        writer.add_scalar("Batch loss / train", loss.item(), epoch * len(dataloader) + i)
+        writer.add_scalar("batch loss / train", loss.item(), epoch * len(dataloader) + i)
 
-    return np.mean(epoch_loss)
+        with torch.no_grad():
+            y_true_batch = tgt.long().cpu().numpy()
+            y_pred_batch = (scores > 0.5).long().cpu().numpy()
+
+        y_true_list.append(y_true_batch)
+        y_pred_list.append(y_pred_batch)
+
+        batch_metrics = compute_metrics(y_true=y_true_batch, y_pred=y_pred_batch)
+
+        for metric_name, metric_value in batch_metrics.items():
+            writer.add_scalar(f"batch {metric_name} / train", metric_value, epoch * len(dataloader) + i)
+
+    avg_loss = np.mean(epoch_loss)
+    print(f"Train loss: {avg_loss}\n")
+    writer.add_scalar("loss / train", avg_loss, epoch)
+
+    y_true = np.concatenate(y_true_list)
+    y_pred = np.concatenate(y_pred_list)
+
+    metrics = compute_metrics(y_true=y_true, y_pred=y_pred)
+    print(f"Train metrics:\n{metrics}\n")
+
+    for metric_name, metric_value in metrics.items():
+        writer.add_scalar(f"{metric_name} / train", metric_value, epoch)
 
 
 def evaluate_epoch(
@@ -140,7 +133,7 @@ def evaluate_epoch(
     writer: SummaryWriter,
     device: torch.device,
     epoch: int,
-) -> float:
+) -> None:
     """
     One evaluation cycle (loop).
 
@@ -151,14 +144,13 @@ def evaluate_epoch(
         writer (SummaryWriter): tensorboard writer.
         device (torch.device): cpu or cuda.
         epoch (int): number of current epochs.
-
-    Returns:
-        float: average loss.
     """
 
     model.eval()
 
     epoch_loss = []
+    y_true_list = []
+    y_pred_list = []
 
     with torch.no_grad():
 
@@ -170,10 +162,32 @@ def evaluate_epoch(
 
             q1, q2, tgt = q1.to(device), q2.to(device), tgt.to(device)
 
-            pred = model(q1, q2)
-            loss = criterion(pred, tgt)
+            scores = model(q1, q2)
+            loss = criterion(scores, tgt)
 
             epoch_loss.append(loss.item())
-            writer.add_scalar("Batch loss / test", loss.item(), epoch * len(dataloader) + i)
+            writer.add_scalar("batch loss / test", loss.item(), epoch * len(dataloader) + i)
 
-    return np.mean(epoch_loss)
+            y_true_batch = tgt.long().cpu().numpy()
+            y_pred_batch = (scores > 0.5).long().cpu().numpy()
+
+            y_true_list.append(y_true_batch)
+            y_pred_list.append(y_pred_batch)
+
+            batch_metrics = compute_metrics(y_true=y_true_batch, y_pred=y_pred_batch)
+
+            for metric_name, metric_value in batch_metrics.items():
+                writer.add_scalar(f"batch {metric_name} / test", metric_value, epoch * len(dataloader) + i)
+
+        avg_loss = np.mean(epoch_loss)
+        print(f"Test loss:  {avg_loss}\n")
+        writer.add_scalar("loss / test", avg_loss, epoch)
+
+        y_true = np.concatenate(y_true_list)
+        y_pred = np.concatenate(y_pred_list)
+
+        metrics = compute_metrics(y_true=y_true, y_pred=y_pred)
+        print(f"Test metrics:\n{metrics}\n")
+
+        for metric_name, metric_value in metrics.items():
+            writer.add_scalar(f"{metric_name} / test", metric_value, epoch)
