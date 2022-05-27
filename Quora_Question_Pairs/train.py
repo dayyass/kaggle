@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from metrics import compute_metrics
+from metrics import compute_metrics_on_df
 from model import SiameseManhattanBERT
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -57,14 +57,24 @@ def train(
         writer.add_scalar("Loss / train", train_loss, epoch)
         writer.add_scalar("Loss / test", test_loss, epoch)
 
-        train_metrics = compute_metrics(model=model, dataloader=train_dataloader)
+        train_metrics = compute_metrics_on_df(
+            model=model,
+            df=train_dataloader.dataset.df,
+            tokenizer=train_dataloader.collate_fn.tokenizer,
+            tokenizer_kwargs=train_dataloader.collate_fn.tokenizer_kwargs,
+        )
 
         for metric_name, metric_value in train_metrics.items():
             writer.add_scalar(f"{metric_name} / train", metric_value, epoch)
 
         print(f"Train metrics:\n{train_metrics}\n")
 
-        test_metrics = compute_metrics(model=model, dataloader=test_dataloader)
+        test_metrics = compute_metrics_on_df(
+            model=model,
+            df=test_dataloader.dataset.df,
+            tokenizer=test_dataloader.collate_fn.tokenizer,
+            tokenizer_kwargs=test_dataloader.collate_fn.tokenizer_kwargs,
+        )
 
         for metric_name, metric_value in test_metrics.items():
             writer.add_scalar(f"{metric_name} / test", metric_value, epoch)
