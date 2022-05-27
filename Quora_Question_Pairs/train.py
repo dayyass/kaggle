@@ -40,6 +40,7 @@ def train(
             criterion=criterion,
             writer=writer,
             device=device,
+            epoch=epoch,
         )
         test_loss = evaluate_epoch(
             model=model,
@@ -47,6 +48,7 @@ def train(
             criterion=criterion,
             writer=writer,
             device=device,
+            epoch=epoch,
         )
 
         print(f"Train loss: {train_loss}")
@@ -77,6 +79,7 @@ def train_epoch(
     criterion: torch.nn.Module,
     writer: SummaryWriter,
     device: torch.device,
+    epoch: int,
 ) -> float:
     """
     One training cycle (loop).
@@ -88,6 +91,7 @@ def train_epoch(
         criterion (torch.nn.Module): criterion.
         writer (SummaryWriter): tensorboard writer.
         device (torch.device): cpu or cuda.
+        epoch (int): number of current epochs.
 
     Returns:
         float: average loss.
@@ -114,7 +118,7 @@ def train_epoch(
         optimizer.step()
 
         epoch_loss.append(loss.item())
-        writer.add_scalar("Batch loss / train", loss.item(), i)
+        writer.add_scalar("Batch loss / train", loss.item(), epoch * len(dataloader) + i)
 
     return np.mean(epoch_loss)
 
@@ -125,6 +129,7 @@ def evaluate_epoch(
     criterion: torch.nn.Module,
     writer: SummaryWriter,
     device: torch.device,
+    epoch: int,
 ) -> float:
     """
     One evaluation cycle (loop).
@@ -135,6 +140,7 @@ def evaluate_epoch(
         criterion (torch.nn.Module): criterion.
         writer (SummaryWriter): tensorboard writer.
         device (torch.device): cpu or cuda.
+        epoch (int): number of current epochs.
 
     Returns:
         float: average loss.
@@ -158,6 +164,6 @@ def evaluate_epoch(
             loss = criterion(pred, tgt)
 
             epoch_loss.append(loss.item())
-            writer.add_scalar("Batch loss / test", loss.item(), i)
+            writer.add_scalar("Batch loss / test", loss.item(), epoch * len(dataloader) + i)
 
     return np.mean(epoch_loss)
