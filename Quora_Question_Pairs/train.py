@@ -79,7 +79,7 @@ def train_epoch(
 
     epoch_loss = []
     y_true_list = []
-    y_pred_list = []
+    y_score_list = []
 
     for i, (q1, q2, tgt) in tqdm(
         enumerate(dataloader),
@@ -101,13 +101,18 @@ def train_epoch(
         writer.add_scalar("batch loss / train", loss.item(), epoch * len(dataloader) + i)
 
         with torch.no_grad():
+            model.eval()
+
+            scores_inference = model(q1, q2)
             y_true_batch = tgt.long().cpu().numpy()
-            y_pred_batch = (scores > 0.5).long().cpu().numpy()
+            y_score_batch = scores_inference.cpu().numpy()
+
+            model.train()
 
         y_true_list.append(y_true_batch)
-        y_pred_list.append(y_pred_batch)
+        y_score_list.append(y_score_batch)
 
-        batch_metrics = compute_metrics(y_true=y_true_batch, y_pred=y_pred_batch)
+        batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
 
         for metric_name, metric_value in batch_metrics.items():
             writer.add_scalar(f"batch {metric_name} / train", metric_value, epoch * len(dataloader) + i)
@@ -117,9 +122,9 @@ def train_epoch(
     writer.add_scalar("loss / train", avg_loss, epoch)
 
     y_true = np.concatenate(y_true_list)
-    y_pred = np.concatenate(y_pred_list)
+    y_score = np.concatenate(y_score_list)
 
-    metrics = compute_metrics(y_true=y_true, y_pred=y_pred)
+    metrics = compute_metrics(y_true=y_true, y_score=y_score)
     print(f"Train metrics:\n{metrics}\n")
 
     for metric_name, metric_value in metrics.items():
@@ -150,7 +155,7 @@ def evaluate_epoch(
 
     epoch_loss = []
     y_true_list = []
-    y_pred_list = []
+    y_score_list = []
 
     with torch.no_grad():
 
@@ -169,12 +174,12 @@ def evaluate_epoch(
             writer.add_scalar("batch loss / test", loss.item(), epoch * len(dataloader) + i)
 
             y_true_batch = tgt.long().cpu().numpy()
-            y_pred_batch = (scores > 0.5).long().cpu().numpy()
+            y_score_batch = scores.cpu().numpy()
 
             y_true_list.append(y_true_batch)
-            y_pred_list.append(y_pred_batch)
+            y_score_list.append(y_score_batch)
 
-            batch_metrics = compute_metrics(y_true=y_true_batch, y_pred=y_pred_batch)
+            batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
 
             for metric_name, metric_value in batch_metrics.items():
                 writer.add_scalar(f"batch {metric_name} / test", metric_value, epoch * len(dataloader) + i)
@@ -184,9 +189,9 @@ def evaluate_epoch(
         writer.add_scalar("loss / test", avg_loss, epoch)
 
         y_true = np.concatenate(y_true_list)
-        y_pred = np.concatenate(y_pred_list)
+        y_score = np.concatenate(y_score_list)
 
-        metrics = compute_metrics(y_true=y_true, y_pred=y_pred)
+        metrics = compute_metrics(y_true=y_true, y_score=y_score)
         print(f"Test metrics:\n{metrics}\n")
 
         for metric_name, metric_value in metrics.items():

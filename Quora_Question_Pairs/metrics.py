@@ -20,30 +20,27 @@ tqdm.pandas()
 
 def compute_metrics(
     y_true: np.ndarray,
-    y_pred: np.ndarray,
+    y_score: np.ndarray,
 ) -> Dict[str, float]:
     """
     Compute binary classification metrics.
 
     Args:
         y_true (np.ndarray): targets.
-        y_pred (np.ndarray): predictions.
+        y_score (np.ndarray): prediction scores.
 
     Returns:
         Dict[str, float]: metrics.
     """
 
-    metric_kwargs = {
-        'y_true': y_true,
-        'y_pred': y_pred,
-    }
+    y_pred = (y_score > 0.5).astype('int')
 
-    accuracy = accuracy_score(**metric_kwargs)
-    precision = precision_score(**metric_kwargs, zero_division=0)
-    recall = recall_score(**metric_kwargs, zero_division=0)
-    f1 = f1_score(**metric_kwargs, zero_division=0)
-    roc_auc = roc_auc_score(y_true=y_true, y_score=y_pred)
-    logloss = log_loss(**metric_kwargs)
+    accuracy = accuracy_score(y_true=y_true, y_pred=y_pred)
+    precision = precision_score(y_true=y_true, y_pred=y_pred, zero_division=0)
+    recall = recall_score(y_true=y_true, y_pred=y_pred, zero_division=0)
+    f1 = f1_score(y_true=y_true, y_pred=y_pred, zero_division=0)
+    roc_auc = roc_auc_score(y_true=y_true, y_score=y_score)
+    logloss = log_loss(y_true=y_true, y_pred=y_score)
 
     metrics = {
         "accuracy": accuracy,
@@ -92,8 +89,6 @@ def compute_metrics_on_df(
         q2_emb = np.array(q2_emb.to_list())
 
     y_true = df["is_duplicate"].values
+    y_score = model._exponent_neg_manhattan_distance(q1_emb, q2_emb, type="np")
 
-    scores = model._exponent_neg_manhattan_distance(q1_emb, q2_emb, type="np")
-    y_pred = (scores > 0.5).astype("int")
-
-    return compute_metrics(y_true=y_true, y_pred=y_pred)
+    return compute_metrics(y_true=y_true, y_score=y_score)
