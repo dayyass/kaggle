@@ -130,6 +130,8 @@ def train_epoch(
     for metric_name, metric_value in metrics.items():
         writer.add_scalar(f"{metric_name} / train", metric_value, epoch)
 
+    writer.add_pr_curve('pr_curve / train', y_true, y_score, epoch)
+
 
 def evaluate_epoch(
     model: SiameseManhattanBERT,
@@ -196,3 +198,5 @@ def evaluate_epoch(
 
         for metric_name, metric_value in metrics.items():
             writer.add_scalar(f"{metric_name} / test", metric_value, epoch)
+
+        writer.add_pr_curve('pr_curve / test', y_true, y_score, epoch)

@@ -47,11 +47,11 @@ class SiameseManhattanBERT(torch.nn.Module):
 
         x1 = self._vectorize(x1)
         x2 = self._vectorize(x2)
-        return self._exponent_neg_manhattan_distance(x1, x2)
+        return self.exponent_neg_manhattan_distance(x1, x2)
 
     def vectorize(
         self,
-        text: str,
+        texts: List[str],
         tokenizer: transformers.PreTrainedTokenizer,
         tokenizer_kwargs: Dict[str, int],
     ) -> np.ndarray:
@@ -59,7 +59,7 @@ class SiameseManhattanBERT(torch.nn.Module):
         Inference-time method to get text embedding.
 
         Args:
-            text (str): sentence.
+            texts (List[str]): list of sentences.
             tokenizer (transformers.PreTrainedTokenizer): transformers tokenizer.
             tokenizer_kwargs (Dict[str, int]): transformers parameters.
 
@@ -69,11 +69,11 @@ class SiameseManhattanBERT(torch.nn.Module):
 
         device = self.bert_model.device
 
-        tokens = tokenizer([text], **tokenizer_kwargs).to(device)
+        tokens = tokenizer(texts, **tokenizer_kwargs).to(device)
         with torch.no_grad():
             embedding = self._vectorize(tokens)
 
-        return embedding.squeeze(0).cpu().numpy()
+        return embedding.cpu().numpy()
 
     def _vectorize(self, x: transformers.BatchEncoding) -> torch.Tensor:
         """
@@ -89,7 +89,7 @@ class SiameseManhattanBERT(torch.nn.Module):
         return self.pooler(self.bert_model(**x))
 
     @staticmethod
-    def _exponent_neg_manhattan_distance(
+    def exponent_neg_manhattan_distance(
         x1_emb: Union[np.ndarray, torch.Tensor],
         x2_emb: Union[np.ndarray, torch.Tensor],
         type: str = "pt",

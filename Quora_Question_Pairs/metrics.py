@@ -1,3 +1,4 @@
+import math
 from typing import Dict
 
 import numpy as np
@@ -14,8 +15,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from tqdm import tqdm
-
-tqdm.pandas()
+from utils import chunks
 
 
 def compute_metrics(
@@ -59,6 +59,7 @@ def compute_metrics_on_df(
     df: pd.DataFrame,
     tokenizer: transformers.PreTrainedTokenizer,
     tokenizer_kwargs: Dict[str, int],
+    batch_size: int,
 ) -> Dict[str, float]:
     """
     Compute binary classification metrics on dataframe.
@@ -68,6 +69,7 @@ def compute_metrics_on_df(
         df (pd.DataFrame): Quora Question Pairs dataframe.
         tokenizer (transformers.PreTrainedTokenizer): transformers tokenizer.
         tokenizer_kwargs (Dict[str, int]): transformers parameters.
+        batch_size (int): batch size.
 
     Returns:
         Dict[str, float]: metrics.
@@ -75,20 +77,31 @@ def compute_metrics_on_df(
 
     model.eval()
 
-    with torch.no_grad():
-        tqdm.pandas(desc="vectorize question1")
-        q1_emb = df["question1"].progress_apply(
-            lambda text: model.vectorize(text, tokenizer, tokenizer_kwargs),
-        )
-        q1_emb = np.array(q1_emb.to_list())
+    tqdm_total = math.ceil(len(df) / batch_size)
 
-        tqdm.pandas(desc="vectorize question2")
-        q2_emb = df["question2"].progress_apply(
-            lambda text: model.vectorize(text, tokenizer, tokenizer_kwargs)
-        )
-        q2_emb = np.array(q2_emb.to_list())
+    with torch.no_grad():
+        q1_emb = []
+        for texts in tqdm(
+            chunks(df['question1'].to_list(), n=batch_size),
+            total=tqdm_total,
+            desc='vectorize question1',
+        ):
+            emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
+            q1_emb.append(emb)
+
+        q2_emb = []
+        for texts in tqdm(
+            chunks(df['question2'].to_list(), n=batch_size),
+            total=tqdm_total,
+            desc='vectorize question2',
+        ):
+            emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
+            q2_emb.append(emb)
+
+    q1_emb = np.vstack(q1_emb)
+    q2_emb = np.vstack(q2_emb)
 
     y_true = df["is_duplicate"].values
-    y_score = model._exponent_neg_manhattan_distance(q1_emb, q2_emb, type="np")
+    y_score = model.exponent_neg_manhattan_distance(q1_emb, q2_emb, type="np")
 
     return compute_metrics(y_true=y_true, y_score=y_score)
