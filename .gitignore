@@ -6,5 +6,5 @@
 venv
 
 */runs
-*/data
+*/data/*
 !*/data/README.md
