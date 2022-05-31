@@ -311,25 +311,37 @@ class SiameseContrastiveBERT(torch.nn.Module):
 
         return self.pooler(self.bert_model(**x))
 
-    def similarity_euclidean_score(
-        self,
-        x1_emb: torch.Tensor,
-        x2_emb: torch.Tensor,
-    ) -> torch.Tensor:
+    @staticmethod
+    def exponent_neg_manhattan_distance(
+        x1_emb: Union[np.ndarray, torch.Tensor],
+        x2_emb: Union[np.ndarray, torch.Tensor],
+        type: str = "pt",
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
-        Calculate semantic similarity euclidean scores given embedding of the sentences batches.
+        Calculate semantic similarity scores given embedding of the sentences batches.
 
         Args:
-            x1_emb (torch.Tensor): embeddings of sentences batch.
-            x2_emb (torch.Tensor): embeddings of sentences batch.
+            x1_emb (Union[np.ndarray, torch.Tensor]): embeddings of sentences batch.
+            x2_emb (Union[np.ndarray, torch.Tensor]): embeddings of sentences batch.
+            type (str, optional): torch or numpy calculation. Defaults to 'pt'.
+
+        Raises:
+            ValueError: only 'pt' (torch) and 'np' (numpy) values are allowed.
 
         Returns:
-            torch.Tensor: semantic similarity euclidean scores.
+            Union[np.ndarray, torch.Tensor]: semantic similarity scores.
         """
 
-        with torch.no_grad():
-            scores = torch.nn.functional.pairwise_distance(x1_emb, x2_emb)
-
+        if type == "pt":
+            manhattan_distance = torch.nn.functional.pairwise_distance(
+                x1_emb, x2_emb, p=1
+            )
+            scores = torch.exp(-manhattan_distance)
+        elif type == "np":
+            manhattan_distance = np.linalg.norm(x1_emb - x2_emb, ord=1, axis=1)
+            scores = np.exp(-manhattan_distance)
+        else:
+            raise ValueError(f"type '{type}' is not known, use 'pt' or 'np'")
         return scores
 
 
