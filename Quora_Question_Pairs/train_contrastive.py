@@ -91,8 +91,8 @@ def train_epoch(
 
         optimizer.zero_grad()
 
-        q1, q2 = model(q1, q2)
-        loss = criterion(q1, q2, tgt)
+        q1_loss, q2_loss = model(q1, q2)
+        loss = criterion(q1_loss, q2_loss, tgt)
 
         loss.backward()
         optimizer.step()
@@ -105,7 +105,7 @@ def train_epoch(
 
             q1, q2 = model(q1, q2)
             y_true_batch = tgt.long().cpu().numpy()
-            y_score_batch = model.similarity_euclidean_score(q1, q2).cpu().numpy()
+            y_score_batch = model.exponent_neg_manhattan_distance(q1, q2).cpu().numpy()
 
             model.train()
 
@@ -176,7 +176,7 @@ def evaluate_epoch(
             writer.add_scalar("batch loss / test", loss.item(), epoch * len(dataloader) + i)
 
             y_true_batch = tgt.long().cpu().numpy()
-            y_score_batch = model.similarity_euclidean_score(q1, q2).cpu().numpy()
+            y_score_batch = model.exponent_neg_manhattan_distance(q1, q2).cpu().numpy()
 
             y_true_list.append(y_true_batch)
             y_score_list.append(y_score_batch)
