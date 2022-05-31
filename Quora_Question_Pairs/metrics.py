@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 import transformers
-from model import SiameseManhattanBERT, SiameseSigmoidBERT
+from model import SiameseContrastiveBERT, SiameseManhattanBERT, SiameseSigmoidBERT
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -160,6 +160,64 @@ def compute_metrics_on_df_sigmoid(
 
     with torch.no_grad():
         y_score = model.similarity_sigmoid_score(q1_emb, q2_emb)
+        y_score = y_score.cpu().numpy()
+
+    return compute_metrics(y_true=y_true, y_score=y_score)
+
+
+# TODO: reduce to compute_metrics_on_df
+def compute_metrics_on_df_contrastive(
+    model: SiameseContrastiveBERT,
+    df: pd.DataFrame,
+    tokenizer: transformers.PreTrainedTokenizer,
+    tokenizer_kwargs: Dict[str, int],
+    batch_size: int,
+) -> Dict[str, float]:
+    """
+    Compute binary classification metrics on dataframe.
+
+    Args:
+        model (SiameseContrastiveBERT): model.
+        df (pd.DataFrame): Quora Question Pairs dataframe.
+        tokenizer (transformers.PreTrainedTokenizer): transformers tokenizer.
+        tokenizer_kwargs (Dict[str, int]): transformers parameters.
+        batch_size (int): batch size.
+
+    Returns:
+        Dict[str, float]: metrics.
+    """
+
+    model.eval()
+
+    tqdm_total = math.ceil(len(df) / batch_size)
+
+    with torch.no_grad():
+        q1_emb = []
+        for texts in tqdm(
+            chunks(df['question1'].to_list(), n=batch_size),
+            total=tqdm_total,
+            desc='vectorize question1',
+        ):
+            emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
+            q1_emb.append(emb)
+
+        q2_emb = []
+        for texts in tqdm(
+            chunks(df['question2'].to_list(), n=batch_size),
+            total=tqdm_total,
+            desc='vectorize question2',
+        ):
+            emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
+            q2_emb.append(emb)
+
+    # TODO: optimize
+    q1_emb = torch.cat(q1_emb)
+    q2_emb = torch.cat(q2_emb)
+
+    y_true = df["is_duplicate"].values
+
+    with torch.no_grad():
+        y_score = model.exponent_neg_manhattan_distance(q1_emb, q2_emb)
         y_score = y_score.cpu().numpy()
 
     return compute_metrics(y_true=y_true, y_score=y_score)
