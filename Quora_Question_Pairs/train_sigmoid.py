@@ -1,14 +1,14 @@
 import numpy as np
 import torch
 from metrics import compute_metrics
-from model import SiameseManhattanBERT
+from model import SiameseSigmoidBERT
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 
 def train(
     n_epochs: int,
-    model: SiameseManhattanBERT,
+    model: SiameseSigmoidBERT,
     train_dataloader: torch.utils.data.DataLoader,
     test_dataloader: torch.utils.data.DataLoader,
     optimizer: torch.optim.Optimizer,
@@ -21,7 +21,7 @@ def train(
 
     Args:
         n_epochs (int): number of epochs to train.
-        model (SiameseManhattanBERT): model.
+        model (SiameseSigmoidBERT): model.
         train_dataloader (torch.utils.data.DataLoader): train_dataloader.
         test_dataloader (torch.utils.data.DataLoader): test_dataloader.
         optimizer (torch.optim.Optimizer): optimizer.
@@ -54,7 +54,7 @@ def train(
 
 
 def train_epoch(
-    model: SiameseManhattanBERT,
+    model: SiameseSigmoidBERT,
     dataloader: torch.utils.data.DataLoader,
     optimizer: torch.optim.Optimizer,
     criterion: torch.nn.Module,
@@ -66,7 +66,7 @@ def train_epoch(
     One training cycle (loop).
 
     Args:
-        model (SiameseManhattanBERT): model.
+        model (SiameseSigmoidBERT): model.
         dataloader (torch.utils.data.DataLoader): dataloader.
         optimizer (torch.optim.Optimizer): optimizer.
         criterion (torch.nn.Module): criterion.
@@ -134,7 +134,7 @@ def train_epoch(
 
 
 def evaluate_epoch(
-    model: SiameseManhattanBERT,
+    model: SiameseSigmoidBERT,
     dataloader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
     writer: SummaryWriter,
@@ -145,7 +145,7 @@ def evaluate_epoch(
     One evaluation cycle (loop).
 
     Args:
-        model (SiameseManhattanBERT): model.
+        model (SiameseSigmoidBERT): model.
         dataloader (torch.utils.data.DataLoader): dataloader.
         criterion (torch.nn.Module): criterion.
         writer (SummaryWriter): tensorboard writer.
