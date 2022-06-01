@@ -345,6 +345,126 @@ class SiameseContrastiveBERT(torch.nn.Module):
         return scores
 
 
+class SiameseTripletBERT(torch.nn.Module):
+    """
+    Siamese BERT with Triplet Loss.
+    """
+
+    def __init__(
+        self,
+        bert_model: transformers.PreTrainedModel,
+        pooler: torch.nn.Module,
+    ):
+        """
+        Model initialization with BERT model and pooler.
+
+        Args:
+            bert_model (transformers.PreTrainedModel): BERT model.
+            pooler (torch.nn.Module): pooler to get embeddings from bert_model output.
+        """
+
+        super().__init__()
+
+        self.bert_model = bert_model
+        self.pooler = pooler
+
+    def forward(
+        self,
+        anchor: transformers.BatchEncoding,
+        positive: transformers.BatchEncoding,
+        negative: transformers.BatchEncoding,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Forward pass with anchor, positive and negative tokenized sentences.
+
+        Args:
+            anchor (transformers.BatchEncoding): anchor sentences.
+            positive (transformers.BatchEncoding): positive sentences.
+            negative (transformers.BatchEncoding): negative sentences.
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: anchor, positive and negative embeddings.
+        """
+
+        anchor = self._vectorize(anchor)
+        positive = self._vectorize(positive)
+        negative = self._vectorize(negative)
+
+        return anchor, positive, negative
+
+    def vectorize(
+        self,
+        texts: List[str],
+        tokenizer: transformers.PreTrainedTokenizer,
+        tokenizer_kwargs: Dict[str, int],
+    ) -> torch.Tensor:
+        """
+        Inference-time method to get text embedding.
+
+        Args:
+            texts (List[str]): list of sentences.
+            tokenizer (transformers.PreTrainedTokenizer): transformers tokenizer.
+            tokenizer_kwargs (Dict[str, int]): transformers parameters.
+
+        Returns:
+            torch.Tensor: text embedding.
+        """
+
+        device = self.bert_model.device
+
+        tokens = tokenizer(texts, **tokenizer_kwargs).to(device)
+        with torch.no_grad():
+            embedding = self._vectorize(tokens)
+
+        return embedding
+
+    def _vectorize(self, x: transformers.BatchEncoding) -> torch.Tensor:
+        """
+        Get embedding from tokenized sentences x.
+
+        Args:
+            x (transformers.BatchEncoding): tokenized sentences.
+
+        Returns:
+            torch.Tensor: embedding.
+        """
+
+        return self.pooler(self.bert_model(**x))
+
+    @staticmethod
+    def exponent_neg_manhattan_distance(
+        x1_emb: Union[np.ndarray, torch.Tensor],
+        x2_emb: Union[np.ndarray, torch.Tensor],
+        type: str = "pt",
+    ) -> Union[np.ndarray, torch.Tensor]:
+        """
+        Calculate semantic similarity scores given embedding of the sentences batches.
+
+        Args:
+            x1_emb (Union[np.ndarray, torch.Tensor]): embeddings of sentences batch.
+            x2_emb (Union[np.ndarray, torch.Tensor]): embeddings of sentences batch.
+            type (str, optional): torch or numpy calculation. Defaults to 'pt'.
+
+        Raises:
+            ValueError: only 'pt' (torch) and 'np' (numpy) values are allowed.
+
+        Returns:
+            Union[np.ndarray, torch.Tensor]: semantic similarity scores.
+        """
+
+        if type == "pt":
+            manhattan_distance = torch.nn.functional.pairwise_distance(
+                x1_emb, x2_emb, p=1
+            )
+            scores = torch.exp(-manhattan_distance)
+        elif type == "np":
+            manhattan_distance = np.linalg.norm(x1_emb - x2_emb, ord=1, axis=1)
+            scores = np.exp(-manhattan_distance)
+        else:
+            raise ValueError(f"type '{type}' is not known, use 'pt' or 'np'")
+        return scores
+
+
 # TOWER POOLERS
 
 class ClsPooler(torch.nn.Module):
