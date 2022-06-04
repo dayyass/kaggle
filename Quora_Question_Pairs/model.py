@@ -311,6 +311,7 @@ class SiameseContrastiveBERT(torch.nn.Module):
 
         return self.pooler(self.bert_model(**x))
 
+    # TODO: fix - use L2 istead of L1
     @staticmethod
     def exponent_neg_manhattan_distance(
         x1_emb: Union[np.ndarray, torch.Tensor],
@@ -334,11 +335,11 @@ class SiameseContrastiveBERT(torch.nn.Module):
 
         if type == "pt":
             manhattan_distance = torch.nn.functional.pairwise_distance(
-                x1_emb, x2_emb, p=1
+                x1_emb, x2_emb, p=2
             )
             scores = torch.exp(-manhattan_distance)
         elif type == "np":
-            manhattan_distance = np.linalg.norm(x1_emb - x2_emb, ord=1, axis=1)
+            manhattan_distance = np.linalg.norm(x1_emb - x2_emb, ord=2, axis=1)
             scores = np.exp(-manhattan_distance)
         else:
             raise ValueError(f"type '{type}' is not known, use 'pt' or 'np'")
@@ -431,6 +432,7 @@ class SiameseTripletBERT(torch.nn.Module):
 
         return self.pooler(self.bert_model(**x))
 
+    # TODO: fix - use L2 istead of L1
     @staticmethod
     def exponent_neg_manhattan_distance(
         x1_emb: Union[np.ndarray, torch.Tensor],
@@ -454,11 +456,11 @@ class SiameseTripletBERT(torch.nn.Module):
 
         if type == "pt":
             manhattan_distance = torch.nn.functional.pairwise_distance(
-                x1_emb, x2_emb, p=1
+                x1_emb, x2_emb, p=2
             )
             scores = torch.exp(-manhattan_distance)
         elif type == "np":
-            manhattan_distance = np.linalg.norm(x1_emb - x2_emb, ord=1, axis=1)
+            manhattan_distance = np.linalg.norm(x1_emb - x2_emb, ord=2, axis=1)
             scores = np.exp(-manhattan_distance)
         else:
             raise ValueError(f"type '{type}' is not known, use 'pt' or 'np'")
