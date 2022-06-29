@@ -11,24 +11,6 @@ class SiameseManhattanBERT(SiameseBase):
     https://blog.mlreview.com/implementing-malstm-on-kaggles-quora-question-pairs-competition-8b31b0b16a07
     """
 
-    def __init__(
-        self,
-        bert_model: transformers.PreTrainedModel,
-        pooler: torch.nn.Module,
-    ):
-        """
-        Model initialization with BERT model and pooler.
-
-        Args:
-            bert_model (transformers.PreTrainedModel): BERT model.
-            pooler (torch.nn.Module): pooler to get embeddings from bert_model output.
-        """
-
-        super().__init__()
-
-        self.bert_model = bert_model
-        self.pooler = pooler
-
     def forward(
         self,
         x1: transformers.BatchEncoding,
@@ -89,10 +71,10 @@ class SiameseSigmoidBERT(SiameseBase):
             intertower_pooler (torch.nn.Module): intertower pooler to process two towers embedding.
         """
 
-        super().__init__()
-
-        self.bert_model = bert_model
-        self.pooler = pooler
+        super().__init__(
+            bert_model=bert_model,
+            pooler=pooler,
+        )
         self.intertower_pooler = intertower_pooler
 
     def forward(
@@ -141,24 +123,6 @@ class SiameseContrastiveBERT(SiameseBase):
     """
     Siamese BERT with Contrastive Loss.
     """
-
-    def __init__(
-        self,
-        bert_model: transformers.PreTrainedModel,
-        pooler: torch.nn.Module,
-    ):
-        """
-        Model initialization with BERT model and pooler.
-
-        Args:
-            bert_model (transformers.PreTrainedModel): BERT model.
-            pooler (torch.nn.Module): pooler to get embeddings from bert_model output.
-        """
-
-        super().__init__()
-
-        self.bert_model = bert_model
-        self.pooler = pooler
 
     def forward(
         self,

@@ -10,6 +10,24 @@ class SiameseBase(torch.nn.Module, ABC):
     Siamese Abstract Base Class.
     """
 
+    def __init__(
+        self,
+        bert_model: transformers.PreTrainedModel,
+        pooler: torch.nn.Module,
+    ):
+        """
+        Model initialization with BERT model and pooler.
+
+        Args:
+            bert_model (transformers.PreTrainedModel): BERT model.
+            pooler (torch.nn.Module): pooler to get embeddings from bert_model output.
+        """
+
+        super().__init__()
+
+        self.bert_model = bert_model
+        self.pooler = pooler
+
     def _vectorize(
         self,
         x: transformers.BatchEncoding,
