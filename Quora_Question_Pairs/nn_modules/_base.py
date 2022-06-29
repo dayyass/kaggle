@@ -10,7 +10,6 @@ class SiameseBase(torch.nn.Module, ABC):
     Siamese Abstract Base Class.
     """
 
-    @abstractmethod
     def _vectorize(
         self,
         x: transformers.BatchEncoding,
@@ -25,7 +24,8 @@ class SiameseBase(torch.nn.Module, ABC):
             torch.Tensor: embedding.
         """
 
-    @abstractmethod
+        return self.pooler(self.bert_model(**x))
+
     def vectorize(
         self,
         texts: List[str],
@@ -44,6 +44,14 @@ class SiameseBase(torch.nn.Module, ABC):
             torch.Tensor: text embedding.
         """
 
+        device = self.bert_model.device
+
+        tokens = tokenizer(texts, **tokenizer_kwargs).to(device)
+        with torch.no_grad():
+            embedding = self._vectorize(tokens)
+
+        return embedding
+
     @abstractmethod
     def similarity(
         self,
@@ -60,3 +68,27 @@ class SiameseBase(torch.nn.Module, ABC):
         Returns:
             torch.Tensor: semantic similarity scores.
         """
+
+
+class IntertowerPoolerBase(torch.nn.Module, ABC):
+    """
+    Intertower Pooler Abstract Base Class.
+    """
+
+    def __init__(self, hidden_size: int, dropout_p: float, mult_param: int):
+        super().__init__()
+        self.dropout_p = dropout_p
+        self.hidden_size = hidden_size * mult_param
+
+        self.dropout = torch.nn.Dropout(self.dropout_p)
+        self.pooler = torch.nn.Linear(self.hidden_size, 1)
+
+    @abstractmethod
+    @staticmethod
+    def _concat(x1_emb: torch.Tensor, x2_emb: torch.Tensor) -> torch.Tensor:
+        ...
+
+    def forward(self, x1_emb: torch.Tensor, x2_emb: torch.Tensor) -> torch.Tensor:
+        concat = self._concat(x1_emb, x2_emb)
+        dropout_concat = self.dropout(concat)
+        return self.pooler(dropout_concat).squeeze(-1)  # logit

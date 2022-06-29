@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Tuple
 
 import torch
 import transformers
@@ -48,48 +48,6 @@ class SiameseManhattanBERT(SiameseBase):
         x1 = self._vectorize(x1)
         x2 = self._vectorize(x2)
         return self.similarity(x1, x2)
-
-    def _vectorize(
-        self,
-        x: transformers.BatchEncoding,
-    ) -> torch.Tensor:
-        """
-        Get embedding from tokenized sentences x.
-
-        Args:
-            x (transformers.BatchEncoding): tokenized sentences.
-
-        Returns:
-            torch.Tensor: embedding.
-        """
-
-        return self.pooler(self.bert_model(**x))
-
-    def vectorize(
-        self,
-        texts: List[str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        tokenizer_kwargs: Dict[str, int],
-    ) -> torch.Tensor:
-        """
-        Inference-time method to get text embedding.
-
-        Args:
-            texts (List[str]): list of sentences.
-            tokenizer (transformers.PreTrainedTokenizer): transformers tokenizer.
-            tokenizer_kwargs (Dict[str, int]): transformers parameters.
-
-        Returns:
-            torch.Tensor: text embedding.
-        """
-
-        device = self.bert_model.device
-
-        tokens = tokenizer(texts, **tokenizer_kwargs).to(device)
-        with torch.no_grad():
-            embedding = self._vectorize(tokens)
-
-        return embedding.cpu()
 
     @staticmethod
     def similarity(
@@ -157,48 +115,6 @@ class SiameseSigmoidBERT(SiameseBase):
         x2 = self._vectorize(x2)
         return self.intertower_pooler(x1, x2)
 
-    def _vectorize(
-        self,
-        x: transformers.BatchEncoding,
-    ) -> torch.Tensor:
-        """
-        Get embedding from tokenized sentences x.
-
-        Args:
-            x (transformers.BatchEncoding): tokenized sentences.
-
-        Returns:
-            torch.Tensor: embedding.
-        """
-
-        return self.pooler(self.bert_model(**x))
-
-    def vectorize(
-        self,
-        texts: List[str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        tokenizer_kwargs: Dict[str, int],
-    ) -> torch.Tensor:
-        """
-        Inference-time method to get text embedding.
-
-        Args:
-            texts (List[str]): list of sentences.
-            tokenizer (transformers.PreTrainedTokenizer): transformers tokenizer.
-            tokenizer_kwargs (Dict[str, int]): transformers parameters.
-
-        Returns:
-            torch.Tensor: text embedding.
-        """
-
-        device = self.bert_model.device
-
-        tokens = tokenizer(texts, **tokenizer_kwargs).to(device)
-        with torch.no_grad():
-            embedding = self._vectorize(tokens)
-
-        return embedding
-
     def similarity(
         self,
         x1_emb: torch.Tensor,
@@ -264,49 +180,7 @@ class SiameseContrastiveBERT(SiameseBase):
         x2 = self._vectorize(x2)
         return x1, x2
 
-    def _vectorize(
-        self,
-        x: transformers.BatchEncoding,
-    ) -> torch.Tensor:
-        """
-        Get embedding from tokenized sentences x.
-
-        Args:
-            x (transformers.BatchEncoding): tokenized sentences.
-
-        Returns:
-            torch.Tensor: embedding.
-        """
-
-        return self.pooler(self.bert_model(**x))
-
-    def vectorize(
-        self,
-        texts: List[str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        tokenizer_kwargs: Dict[str, int],
-    ) -> torch.Tensor:
-        """
-        Inference-time method to get text embedding.
-
-        Args:
-            texts (List[str]): list of sentences.
-            tokenizer (transformers.PreTrainedTokenizer): transformers tokenizer.
-            tokenizer_kwargs (Dict[str, int]): transformers parameters.
-
-        Returns:
-            torch.Tensor: text embedding.
-        """
-
-        device = self.bert_model.device
-
-        tokens = tokenizer(texts, **tokenizer_kwargs).to(device)
-        with torch.no_grad():
-            embedding = self._vectorize(tokens)
-
-        return embedding
-
-    # TODO: validate
+    # TODO: compare with sigmoid
     @staticmethod
     def similarity(
         x1_emb: torch.Tensor,
