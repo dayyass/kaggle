@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from metrics import compute_metrics
-from model import SiameseManhattanBERT
+from nn_modules.models import SiameseManhattanBERT
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -98,7 +98,9 @@ def train_epoch(
         optimizer.step()
 
         epoch_loss.append(loss.item())
-        writer.add_scalar("batch loss / train", loss.item(), epoch * len(dataloader) + i)
+        writer.add_scalar(
+            "batch loss / train", loss.item(), epoch * len(dataloader) + i
+        )
 
         with torch.no_grad():
             model.eval()
@@ -115,7 +117,11 @@ def train_epoch(
         batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
 
         for metric_name, metric_value in batch_metrics.items():
-            writer.add_scalar(f"batch {metric_name} / train", metric_value, epoch * len(dataloader) + i)
+            writer.add_scalar(
+                f"batch {metric_name} / train",
+                metric_value,
+                epoch * len(dataloader) + i,
+            )
 
     avg_loss = np.mean(epoch_loss)
     print(f"Train loss: {avg_loss}\n")
@@ -130,7 +136,7 @@ def train_epoch(
     for metric_name, metric_value in metrics.items():
         writer.add_scalar(f"{metric_name} / train", metric_value, epoch)
 
-    writer.add_pr_curve('pr_curve / train', y_true, y_score, epoch)
+    writer.add_pr_curve("pr_curve / train", y_true, y_score, epoch)
 
 
 def evaluate_epoch(
@@ -173,7 +179,9 @@ def evaluate_epoch(
             loss = criterion(scores, tgt)
 
             epoch_loss.append(loss.item())
-            writer.add_scalar("batch loss / test", loss.item(), epoch * len(dataloader) + i)
+            writer.add_scalar(
+                "batch loss / test", loss.item(), epoch * len(dataloader) + i
+            )
 
             y_true_batch = tgt.long().cpu().numpy()
             y_score_batch = scores.cpu().numpy()
@@ -184,7 +192,11 @@ def evaluate_epoch(
             batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
 
             for metric_name, metric_value in batch_metrics.items():
-                writer.add_scalar(f"batch {metric_name} / test", metric_value, epoch * len(dataloader) + i)
+                writer.add_scalar(
+                    f"batch {metric_name} / test",
+                    metric_value,
+                    epoch * len(dataloader) + i,
+                )
 
         avg_loss = np.mean(epoch_loss)
         print(f"Test loss:  {avg_loss}\n")
@@ -199,4 +211,4 @@ def evaluate_epoch(
         for metric_name, metric_value in metrics.items():
             writer.add_scalar(f"{metric_name} / test", metric_value, epoch)
 
-        writer.add_pr_curve('pr_curve / test', y_true, y_score, epoch)
+        writer.add_pr_curve("pr_curve / test", y_true, y_score, epoch)

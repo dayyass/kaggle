@@ -101,8 +101,8 @@ class IntertowerPoolerBase(torch.nn.Module, ABC):
         self.dropout = torch.nn.Dropout(self.dropout_p)
         self.pooler = torch.nn.Linear(self.hidden_size, 1)
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def _concat(x1_emb: torch.Tensor, x2_emb: torch.Tensor) -> torch.Tensor:
         ...
 

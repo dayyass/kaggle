@@ -2,7 +2,7 @@ from typing import Tuple
 
 import torch
 import transformers
-from _base import SiameseBase
+from nn_modules._base import SiameseBase
 
 
 class SiameseManhattanBERT(SiameseBase):
