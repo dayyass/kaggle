@@ -5,3 +5,6 @@ My solutions for different Kaggle Competitions:
 
 ### Requirements
 - python >= 3.7
+
+### Thanks
+Thanks to [Tatiana](https://github.com/tatiana-iazykova) for help with metric learning in Quora Question Pairs!
