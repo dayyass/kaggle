@@ -5,7 +5,11 @@ import numpy as np
 import pandas as pd
 import torch
 import transformers
-from model import SiameseContrastiveBERT, SiameseManhattanBERT, SiameseSigmoidBERT
+from nn_modules.models import (
+    SiameseContrastiveBERT,
+    SiameseManhattanBERT,
+    SiameseSigmoidBERT,
+)
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -33,7 +37,7 @@ def compute_metrics(
         Dict[str, float]: metrics.
     """
 
-    y_pred = (y_score > 0.5).astype('int')
+    y_pred = (y_score > 0.5).astype("int")
 
     accuracy = accuracy_score(y_true=y_true, y_pred=y_pred)
     precision = precision_score(y_true=y_true, y_pred=y_pred, zero_division=0)
@@ -82,18 +86,18 @@ def compute_metrics_on_df(
     with torch.no_grad():
         q1_emb = []
         for texts in tqdm(
-            chunks(df['question1'].to_list(), n=batch_size),
+            chunks(df["question1"].to_list(), n=batch_size),
             total=tqdm_total,
-            desc='vectorize question1',
+            desc="vectorize question1",
         ):
             emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
             q1_emb.append(emb)
 
         q2_emb = []
         for texts in tqdm(
-            chunks(df['question2'].to_list(), n=batch_size),
+            chunks(df["question2"].to_list(), n=batch_size),
             total=tqdm_total,
-            desc='vectorize question2',
+            desc="vectorize question2",
         ):
             emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
             q2_emb.append(emb)
@@ -136,18 +140,18 @@ def compute_metrics_on_df_sigmoid(
     with torch.no_grad():
         q1_emb = []
         for texts in tqdm(
-            chunks(df['question1'].to_list(), n=batch_size),
+            chunks(df["question1"].to_list(), n=batch_size),
             total=tqdm_total,
-            desc='vectorize question1',
+            desc="vectorize question1",
         ):
             emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
             q1_emb.append(emb)
 
         q2_emb = []
         for texts in tqdm(
-            chunks(df['question2'].to_list(), n=batch_size),
+            chunks(df["question2"].to_list(), n=batch_size),
             total=tqdm_total,
-            desc='vectorize question2',
+            desc="vectorize question2",
         ):
             emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
             q2_emb.append(emb)
@@ -194,18 +198,18 @@ def compute_metrics_on_df_contrastive(
     with torch.no_grad():
         q1_emb = []
         for texts in tqdm(
-            chunks(df['question1'].to_list(), n=batch_size),
+            chunks(df["question1"].to_list(), n=batch_size),
             total=tqdm_total,
-            desc='vectorize question1',
+            desc="vectorize question1",
         ):
             emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
             q1_emb.append(emb)
 
         q2_emb = []
         for texts in tqdm(
-            chunks(df['question2'].to_list(), n=batch_size),
+            chunks(df["question2"].to_list(), n=batch_size),
             total=tqdm_total,
-            desc='vectorize question2',
+            desc="vectorize question2",
         ):
             emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
             q2_emb.append(emb)
