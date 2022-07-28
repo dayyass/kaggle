@@ -2,7 +2,7 @@ from typing import Tuple
 
 import torch
 import transformers
-from models import SiameseContrastiveBERT
+from nn_modules.models import SiameseContrastiveBERT
 
 
 class SiameseTripletBERT(SiameseContrastiveBERT):
@@ -10,7 +10,7 @@ class SiameseTripletBERT(SiameseContrastiveBERT):
     Siamese BERT with Triplet Loss.
     """
 
-    def forward(
+    def forward(  # type: ignore
         self,
         anchor: transformers.BatchEncoding,
         positive: transformers.BatchEncoding,
