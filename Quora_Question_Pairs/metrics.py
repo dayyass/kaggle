@@ -191,14 +191,11 @@ def compute_metrics_on_df_sigmoid(
             q2_emb.append(emb)
 
     # TODO: optimize
-    q1_emb = torch.cat(q1_emb)
-    q2_emb = torch.cat(q2_emb)
+    q1_emb = torch.vstack(q1_emb)
+    q2_emb = torch.vstack(q2_emb)
 
     y_true = df["is_duplicate"].values
-
-    with torch.no_grad():
-        y_score = model.similarity_sigmoid_score(q1_emb, q2_emb)
-        y_score = y_score.cpu().numpy()
+    y_score = model.similarity(q1_emb, q2_emb).cpu().numpy()
 
     return _compute_metrics(y_true=y_true, y_score=y_score)
 
