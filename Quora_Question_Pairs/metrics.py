@@ -23,6 +23,33 @@ from utils import chunks
 
 
 def compute_metrics(
+    outputs: torch.Tensor,
+    targets: torch.Tensor,
+) -> Dict[str, float]:
+    """
+    Compute binary classification metrics.
+
+    Args:
+        outputs (torch.Tensor): targets.
+        targets (torch.Tensor): model outputs.
+
+    Returns:
+        Dict[str, float]: metrics.
+    """
+
+    # TODO: maybe mode .long() into dataset
+    y_true = targets.long().cpu().numpy()
+    y_score = outputs.cpu().numpy()
+
+    metrics = _compute_metrics(
+        y_true=y_true,
+        y_score=y_score,
+    )
+
+    return metrics
+
+
+def _compute_metrics(
     y_true: np.ndarray,
     y_score: np.ndarray,
 ) -> Dict[str, float]:
@@ -43,8 +70,16 @@ def compute_metrics(
     precision = precision_score(y_true=y_true, y_pred=y_pred, zero_division=0)
     recall = recall_score(y_true=y_true, y_pred=y_pred, zero_division=0)
     f1 = f1_score(y_true=y_true, y_pred=y_pred, zero_division=0)
-    roc_auc = roc_auc_score(y_true=y_true, y_score=y_score)
-    logloss = log_loss(y_true=y_true, y_pred=y_score)
+
+    try:
+        roc_auc = roc_auc_score(y_true=y_true, y_score=y_score)
+    except ValueError:
+        roc_auc = 0
+
+    try:
+        logloss = log_loss(y_true=y_true, y_pred=y_score)
+    except ValueError:
+        logloss = 0
 
     metrics = {
         "accuracy": accuracy,
@@ -83,33 +118,35 @@ def compute_metrics_on_df(
 
     tqdm_total = math.ceil(len(df) / batch_size)
 
-    with torch.no_grad():
-        q1_emb = []
-        for texts in tqdm(
-            chunks(df["question1"].to_list(), n=batch_size),
-            total=tqdm_total,
-            desc="vectorize question1",
-        ):
-            emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
-            q1_emb.append(emb)
+    q1_emb, q2_emb = [], []
 
-        q2_emb = []
-        for texts in tqdm(
-            chunks(df["question2"].to_list(), n=batch_size),
-            total=tqdm_total,
-            desc="vectorize question2",
-        ):
-            emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
-            q2_emb.append(emb)
+    for texts in tqdm(
+        chunks(df["question1"].to_list(), n=batch_size),
+        total=tqdm_total,
+        desc="vectorize question1",
+    ):
+        emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
+        q1_emb.append(emb)
+
+    for texts in tqdm(
+        chunks(df["question2"].to_list(), n=batch_size),
+        total=tqdm_total,
+        desc="vectorize question2",
+    ):
+        emb = model.vectorize(texts, tokenizer, tokenizer_kwargs)
+        q2_emb.append(emb)
 
     # TODO: optimize
+    q1_emb = [emb.cpu().numpy() for emb in q1_emb]
+    q2_emb = [emb.cpu().numpy() for emb in q2_emb]
+
     q1_emb = np.vstack(q1_emb)
     q2_emb = np.vstack(q2_emb)
 
     y_true = df["is_duplicate"].values
-    y_score = model.exponent_neg_manhattan_distance(q1_emb, q2_emb, type="np")
+    y_score = model.similarity(q1_emb, q2_emb)
 
-    return compute_metrics(y_true=y_true, y_score=y_score)
+    return _compute_metrics(y_true=y_true, y_score=y_score)
 
 
 def compute_metrics_on_df_sigmoid(
@@ -166,7 +203,7 @@ def compute_metrics_on_df_sigmoid(
         y_score = model.similarity_sigmoid_score(q1_emb, q2_emb)
         y_score = y_score.cpu().numpy()
 
-    return compute_metrics(y_true=y_true, y_score=y_score)
+    return _compute_metrics(y_true=y_true, y_score=y_score)
 
 
 # TODO: reduce to compute_metrics_on_df
@@ -224,4 +261,4 @@ def compute_metrics_on_df_contrastive(
         y_score = model.exponent_neg_manhattan_distance(q1_emb, q2_emb)
         y_score = y_score.cpu().numpy()
 
-    return compute_metrics(y_true=y_true, y_score=y_score)
+    return _compute_metrics(y_true=y_true, y_score=y_score)

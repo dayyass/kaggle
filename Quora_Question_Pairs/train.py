@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 import torch
 from metrics import compute_metrics
@@ -78,8 +80,7 @@ def train_epoch(
     model.train()
 
     epoch_loss = []
-    y_true_list = []
-    y_score_list = []
+    batch_metrics_list = defaultdict(list)
 
     for i, (q1, q2, tgt) in tqdm(
         enumerate(dataloader),
@@ -104,19 +105,16 @@ def train_epoch(
 
         with torch.no_grad():
             model.eval()
-
             scores_inference = model(q1, q2)
-            y_true_batch = tgt.long().cpu().numpy()
-            y_score_batch = scores_inference.cpu().numpy()
-
             model.train()
 
-        y_true_list.append(y_true_batch)
-        y_score_list.append(y_score_batch)
-
-        batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
+        batch_metrics = compute_metrics(
+            outputs=scores_inference,
+            targets=tgt,
+        )
 
         for metric_name, metric_value in batch_metrics.items():
+            batch_metrics_list[metric_name].append(metric_value)
             writer.add_scalar(
                 f"batch {metric_name} / train",
                 metric_value,
@@ -127,16 +125,10 @@ def train_epoch(
     print(f"Train loss: {avg_loss}\n")
     writer.add_scalar("loss / train", avg_loss, epoch)
 
-    y_true = np.concatenate(y_true_list)
-    y_score = np.concatenate(y_score_list)
-
-    metrics = compute_metrics(y_true=y_true, y_score=y_score)
-    print(f"Train metrics:\n{metrics}\n")
-
-    for metric_name, metric_value in metrics.items():
+    for metric_name, metric_value_list in batch_metrics_list.items():
+        metric_value = np.mean(metric_value_list)
+        print(f"Train {metric_name}: {metric_value}\n")
         writer.add_scalar(f"{metric_name} / train", metric_value, epoch)
-
-    writer.add_pr_curve("pr_curve / train", y_true, y_score, epoch)
 
 
 def evaluate_epoch(
@@ -162,8 +154,7 @@ def evaluate_epoch(
     model.eval()
 
     epoch_loss = []
-    y_true_list = []
-    y_score_list = []
+    batch_metrics_list = defaultdict(list)
 
     with torch.no_grad():
 
@@ -183,15 +174,13 @@ def evaluate_epoch(
                 "batch loss / test", loss.item(), epoch * len(dataloader) + i
             )
 
-            y_true_batch = tgt.long().cpu().numpy()
-            y_score_batch = scores.cpu().numpy()
-
-            y_true_list.append(y_true_batch)
-            y_score_list.append(y_score_batch)
-
-            batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
+            batch_metrics = compute_metrics(
+                outputs=scores,
+                targets=tgt,
+            )
 
             for metric_name, metric_value in batch_metrics.items():
+                batch_metrics_list[metric_name].append(metric_value)
                 writer.add_scalar(
                     f"batch {metric_name} / test",
                     metric_value,
@@ -202,13 +191,7 @@ def evaluate_epoch(
         print(f"Test loss:  {avg_loss}\n")
         writer.add_scalar("loss / test", avg_loss, epoch)
 
-        y_true = np.concatenate(y_true_list)
-        y_score = np.concatenate(y_score_list)
-
-        metrics = compute_metrics(y_true=y_true, y_score=y_score)
-        print(f"Test metrics:\n{metrics}\n")
-
-        for metric_name, metric_value in metrics.items():
+        for metric_name, metric_value_list in batch_metrics_list.items():
+            metric_value = np.mean(metric_value_list)
+            print(f"Test {metric_name}: {metric_value}\n")
             writer.add_scalar(f"{metric_name} / test", metric_value, epoch)
-
-        writer.add_pr_curve("pr_curve / test", y_true, y_score, epoch)
