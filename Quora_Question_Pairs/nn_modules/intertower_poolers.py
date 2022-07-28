@@ -1,5 +1,5 @@
 import torch
-from _base import IntertowerPoolerBase
+from nn_modules._base import IntertowerPoolerBase
 
 
 class IntertowerConcatPooler(IntertowerPoolerBase):
@@ -14,6 +14,7 @@ class IntertowerConcatPooler(IntertowerPoolerBase):
             mult_param=2,  # hardcode
         )
 
+    @staticmethod
     def _concat(
         x1_emb: torch.Tensor,
         x2_emb: torch.Tensor,
@@ -37,6 +38,7 @@ class IntertowerConcatPoolerWithAbsDiff(IntertowerPoolerBase):
             mult_param=3,  # hardcode
         )
 
+    @staticmethod
     def _concat(
         x1_emb: torch.Tensor,
         x2_emb: torch.Tensor,
@@ -61,6 +63,7 @@ class IntertowerConcatPoolerWithAbsDiffAndProduct(IntertowerPoolerBase):
             mult_param=4,  # hardcode
         )
 
+    @staticmethod
     def _concat(
         x1_emb: torch.Tensor,
         x2_emb: torch.Tensor,
