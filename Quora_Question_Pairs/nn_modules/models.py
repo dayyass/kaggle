@@ -119,6 +119,7 @@ class SiameseSigmoidBERT(SiameseBase):
         return scores
 
 
+# TODO: reduce to SiameseManhattanBERT (and rename)
 class SiameseContrastiveBERT(SiameseBase):
     """
     Siamese BERT with Contrastive Loss.
@@ -144,7 +145,6 @@ class SiameseContrastiveBERT(SiameseBase):
         x2 = self._vectorize(x2)
         return x1, x2
 
-    # TODO: compare with sigmoid
     @staticmethod
     def similarity(
         x1_emb: torch.Tensor,
