@@ -1,7 +1,9 @@
+from collections import defaultdict
+
 import numpy as np
 import torch
-from metrics import compute_metrics
-from model import SiameseTripletBERT
+from metrics import _compute_metrics
+from nn_modules.triplet_models import SiameseTripletBERT
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -78,8 +80,7 @@ def train_epoch(
     model.train()
 
     epoch_loss = []
-    y_true_list = []
-    y_score_list = []
+    batch_metrics_list = defaultdict(list)
 
     for i, (anchor, positive, negative) in tqdm(
         enumerate(dataloader),
@@ -87,7 +88,11 @@ def train_epoch(
         desc="loop over train batches",
     ):
 
-        anchor, positive, negative = anchor.to(device), positive.to(device), negative.to(device)
+        anchor, positive, negative = (
+            anchor.to(device),
+            positive.to(device),
+            negative.to(device),
+        )
 
         optimizer.zero_grad()
 
@@ -98,46 +103,44 @@ def train_epoch(
         optimizer.step()
 
         epoch_loss.append(loss.item())
-        writer.add_scalar("batch loss / train", loss.item(), epoch * len(dataloader) + i)
+        writer.add_scalar(
+            "batch loss / train", loss.item(), epoch * len(dataloader) + i
+        )
 
         with torch.no_grad():
             model.eval()
 
             anchor, positive, negative = model(anchor, positive, negative)
 
-            y_score_positive_batch = model.exponent_neg_manhattan_distance(anchor, positive).cpu().numpy()
-            y_true_positive_batch = np.ones_like(y_score_positive_batch)
-
-            y_score_negative_batch = model.exponent_neg_manhattan_distance(anchor, negative).cpu().numpy()
-            y_true_negative_batch = np.zeros_like(y_score_negative_batch)
-
-            y_score_batch = np.concatenate([y_score_positive_batch, y_score_negative_batch])
-            y_true_batch = np.concatenate([y_true_positive_batch, y_true_negative_batch])
+            y_score_positive_batch = model.similarity(anchor, positive).cpu().numpy()
+            y_score_negative_batch = model.similarity(anchor, negative).cpu().numpy()
 
             model.train()
 
-        y_true_list.append(y_true_batch)
-        y_score_list.append(y_score_batch)
+        y_true_positive_batch = np.ones_like(y_score_positive_batch)
+        y_true_negative_batch = np.zeros_like(y_score_negative_batch)
 
-        batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
+        y_score_batch = np.concatenate([y_score_positive_batch, y_score_negative_batch])
+        y_true_batch = np.concatenate([y_true_positive_batch, y_true_negative_batch])
+
+        batch_metrics = _compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
 
         for metric_name, metric_value in batch_metrics.items():
-            writer.add_scalar(f"batch {metric_name} / train", metric_value, epoch * len(dataloader) + i)
+            batch_metrics_list[metric_name].append(metric_value)
+            writer.add_scalar(
+                f"batch {metric_name} / train",
+                metric_value,
+                epoch * len(dataloader) + i,
+            )
 
     avg_loss = np.mean(epoch_loss)
     print(f"Train loss: {avg_loss}\n")
     writer.add_scalar("loss / train", avg_loss, epoch)
 
-    y_true = np.concatenate(y_true_list)
-    y_score = np.concatenate(y_score_list)
-
-    metrics = compute_metrics(y_true=y_true, y_score=y_score)
-    print(f"Train metrics:\n{metrics}\n")
-
-    for metric_name, metric_value in metrics.items():
+    for metric_name, metric_value_list in batch_metrics_list.items():
+        metric_value = np.mean(metric_value_list)
+        print(f"Train {metric_name}: {metric_value}\n")
         writer.add_scalar(f"{metric_name} / train", metric_value, epoch)
-
-    writer.add_pr_curve('pr_curve / train', y_true, y_score, epoch)
 
 
 def evaluate_epoch(
@@ -163,8 +166,7 @@ def evaluate_epoch(
     model.eval()
 
     epoch_loss = []
-    y_true_list = []
-    y_score_list = []
+    batch_metrics_list = defaultdict(list)
 
     with torch.no_grad():
 
@@ -174,42 +176,48 @@ def evaluate_epoch(
             desc="loop over test batches",
         ):
 
-            anchor, positive, negative = anchor.to(device), positive.to(device), negative.to(device)
+            anchor, positive, negative = (
+                anchor.to(device),
+                positive.to(device),
+                negative.to(device),
+            )
 
             anchor, positive, negative = model(anchor, positive, negative)
             loss = criterion(anchor, positive, negative)
 
             epoch_loss.append(loss.item())
-            writer.add_scalar("batch loss / test", loss.item(), epoch * len(dataloader) + i)
+            writer.add_scalar(
+                "batch loss / test", loss.item(), epoch * len(dataloader) + i
+            )
 
-            y_score_positive_batch = model.exponent_neg_manhattan_distance(anchor, positive).cpu().numpy()
+            y_score_positive_batch = model.similarity(anchor, positive).cpu().numpy()
             y_true_positive_batch = np.ones_like(y_score_positive_batch)
 
-            y_score_negative_batch = model.exponent_neg_manhattan_distance(anchor, negative).cpu().numpy()
+            y_score_negative_batch = model.similarity(anchor, negative).cpu().numpy()
             y_true_negative_batch = np.zeros_like(y_score_negative_batch)
 
-            y_score_batch = np.concatenate([y_score_positive_batch, y_score_negative_batch])
-            y_true_batch = np.concatenate([y_true_positive_batch, y_true_negative_batch])
+            y_score_batch = np.concatenate(
+                [y_score_positive_batch, y_score_negative_batch]
+            )
+            y_true_batch = np.concatenate(
+                [y_true_positive_batch, y_true_negative_batch]
+            )
 
-            y_true_list.append(y_true_batch)
-            y_score_list.append(y_score_batch)
-
-            batch_metrics = compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
+            batch_metrics = _compute_metrics(y_true=y_true_batch, y_score=y_score_batch)
 
             for metric_name, metric_value in batch_metrics.items():
-                writer.add_scalar(f"batch {metric_name} / test", metric_value, epoch * len(dataloader) + i)
+                batch_metrics_list[metric_name].append(metric_value)
+                writer.add_scalar(
+                    f"batch {metric_name} / test",
+                    metric_value,
+                    epoch * len(dataloader) + i,
+                )
 
         avg_loss = np.mean(epoch_loss)
         print(f"Test loss:  {avg_loss}\n")
         writer.add_scalar("loss / test", avg_loss, epoch)
 
-        y_true = np.concatenate(y_true_list)
-        y_score = np.concatenate(y_score_list)
-
-        metrics = compute_metrics(y_true=y_true, y_score=y_score)
-        print(f"Test metrics:\n{metrics}\n")
-
-        for metric_name, metric_value in metrics.items():
+        for metric_name, metric_value_list in batch_metrics_list.items():
+            metric_value = np.mean(metric_value_list)
+            print(f"Test {metric_name}: {metric_value}\n")
             writer.add_scalar(f"{metric_name} / test", metric_value, epoch)
-
-        writer.add_pr_curve('pr_curve / test', y_true, y_score, epoch)
