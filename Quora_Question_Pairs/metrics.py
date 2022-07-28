@@ -137,14 +137,11 @@ def compute_metrics_on_df(
         q2_emb.append(emb)
 
     # TODO: optimize
-    q1_emb = [emb.cpu().numpy() for emb in q1_emb]
-    q2_emb = [emb.cpu().numpy() for emb in q2_emb]
-
-    q1_emb = np.vstack(q1_emb)
-    q2_emb = np.vstack(q2_emb)
+    q1_emb = torch.vstack(q1_emb)
+    q2_emb = torch.vstack(q2_emb)
 
     y_true = df["is_duplicate"].values
-    y_score = model.similarity(q1_emb, q2_emb)
+    y_score = model.similarity(q1_emb, q2_emb).cpu().numpy()
 
     return _compute_metrics(y_true=y_true, y_score=y_score)
 
